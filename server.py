@@ -8,6 +8,9 @@ import time
 PORT = 8081
 typing_status = {}
 
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+
 def init_db():
     conn = sqlite3.connect('chatty.db')
     c = conn.cursor()
@@ -281,7 +284,7 @@ if __name__ == '__main__':
     init_db()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     port = int(os.environ.get("PORT", 8081))
-    with socketserver.TCPServer(("0.0.0.0", port), ChattyRequestHandler) as httpd:
-        print(f"Serving on 0.0.0.0 port {port}")
+    with ThreadedTCPServer(("0.0.0.0", port), ChattyRequestHandler) as httpd:
+        print(f"Serving on 0.0.0.0 port {port}", flush=True)
         try: httpd.serve_forever()
         except KeyboardInterrupt: httpd.server_close()
