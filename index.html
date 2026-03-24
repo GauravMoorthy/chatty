@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Chatty - The Digital Ether</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+        tailwind.config = { darkMode: "class", theme: { extend: { colors: { "primary": "#5a45cb", "primary-container": "#7360e5", "secondary-fixed": "#62fae3", "surface": "#f8f9ff", "surface-dark": "#0f172a", "on-surface": "#191c20", "on-surface-variant": "#474554", "tertiary": "#993c50", }, fontFamily: { "headline": ["Plus Jakarta Sans"], "body": ["Manrope"], "label": ["Manrope"] }, borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"}, }, }, }
+    </script>
+    <style>
+        body { transition: background-color 0.4s ease, color 0.4s ease; min-height: 100vh; overflow: hidden; perspective: 1000px; }
+        .glass-panel { backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 10px 40px -10px rgba(90, 69, 203, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.3); transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .dark .glass-panel { background-color: rgba(30,30,40,0.6); border-color: rgba(255,255,255,0.08); box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.05); }
+        .blob { position: absolute; z-index: -1; border-radius: 50%; filter: blur(30px); opacity: 0.7; animation: float 20s infinite alternate ease-in-out; pointer-events: none; }
+        .dark .blob { opacity: 0.3; }
+        .blob-1 { width: 400px; height: 400px; background: radial-gradient(circle at 30% 30%, #e5deff, #5a45cb); left: -100px; top: -100px; }
+        .blob-2 { width: 350px; height: 350px; background: radial-gradient(circle at 70% 70%, #62fae3, #006b5f); right: -50px; bottom: -50px; animation-delay: -5s; }
+        .blob-3 { width: 250px; height: 250px; background: radial-gradient(circle at 40% 40%, #ffd9dd, #993c50); left: 50%; top: 40%; animation-duration: 25s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1) rotate(0deg); } 100% { transform: translate(50px, 80px) scale(1.1) rotate(15deg); } }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; transition: font-variation-settings 0.3s ease; }
+        .fade-in-up { opacity: 0; transform: translateY(30px); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+        .fade-in-up.loaded { opacity: 1; transform: translateY(0); }
+        .nav-link:hover .material-symbols-outlined { font-variation-settings: 'FILL' 1; transform: scale(1.1); }
+        .message-bubble { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .typing-dot { animation: typingJump 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typingJump { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="font-body text-slate-800 dark:text-gray-100 bg-surface dark:bg-surface-dark flex items-stretch h-screen p-6 gap-6 relative">
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <!-- AUTHENTICATION OVERLAY -->
+    <div id="authScreen" class="absolute inset-0 z-[100] flex items-center justify-center p-6 bg-white/10 dark:bg-black/40 backdrop-blur-sm transition-opacity duration-500">
+        <div class="glass-panel bg-white/60 dark:bg-slate-800/80 p-10 rounded-3xl shadow-2xl w-full max-w-md flex flex-col gap-6 relative overflow-hidden">
+            <div class="text-center relative z-10">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-xl">
+                    <span class="material-symbols-outlined text-white text-3xl" style="font-variation-settings: 'FILL' 1;">cloud</span>
+                </div>
+                <h1 class="text-3xl font-extrabold font-headline text-primary dark:text-secondary-fixed tracking-tight">Chatty</h1>
+            </div>
+            <p id="authError" class="text-red-500 text-sm text-center font-medium hidden"></p>
+            <form id="authForm" class="flex flex-col gap-4 relative z-10" onsubmit="event.preventDefault(); window.handleLogin();">
+                <input type="text" id="usernameInput" required placeholder="Username" class="w-full bg-white/40 dark:bg-black/30 glass-panel border-transparent focus:border-primary/30 rounded-xl py-4 px-6 outline-none"/>
+                <input type="password" id="passwordInput" required placeholder="Password" class="w-full bg-white/40 dark:bg-black/30 glass-panel border-transparent focus:border-primary/30 rounded-xl py-4 px-6 outline-none"/>
+                <button type="submit" class="w-full py-4 mt-2 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl font-bold shadow-lg hover:shadow-primary/50 hover:-translate-y-1 active:scale-95 transition-all">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="appState" class="flex-1 flex gap-6 w-full h-full opacity-0 pointer-events-none absolute inset-0 p-6 z-40">
+        <!-- Sidebar -->
+        <aside class="hidden md:flex flex-col h-full w-72 p-6 space-y-8 bg-white/40 glass-panel rounded-r-[3rem] shadow-[40px_0_80px_-20px_rgba(25,28,32,0.08)] fade-in-up" id="sidebar">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center shadow-2xl">
+                    <span class="material-symbols-outlined text-white text-2xl">cloud</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-primary dark:text-secondary-fixed font-headline">Chatty</h1>
+                    <p class="text-[10px] uppercase tracking-[0.15em] font-label text-slate-500" id="currentUserDisplay">User</p>
+                </div>
+            </div>
+            <nav class="flex-1 space-y-2">
+                <a class="nav-link flex items-center gap-4 px-6 py-4 bg-gradient-to-br from-primary to-primary-container text-white rounded-full shadow-lg" href="#">
+                    <span class="material-symbols-outlined">chat</span><span class="font-medium text-sm">Messages</span>
+                </a>
+                <button onclick="window.toggleNotifications()" class="nav-link w-full flex items-center justify-between px-6 py-4 text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 rounded-full transition-all cursor-pointer relative group">
+                    <div class="flex items-center gap-4"><span class="material-symbols-outlined">notifications</span><span class="font-medium text-sm">Alerts</span></div>
+                    <span id="notifBadge" class="w-2.5 h-2.5 rounded-full bg-red-500 absolute right-6 top-5 shadow-[0_0_8px_rgba(239,68,68,1)] hidden"></span>
+                </button>
+            </nav>
+            <div class="pt-6 space-y-2 border-t border-slate-200 dark:border-slate-700/50 relative">
+                <button onclick="window.toggleTheme()" class="nav-link w-full flex items-center gap-4 px-6 py-4 text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 rounded-full transition-all">
+                    <span class="material-symbols-outlined" id="themeIcon">dark_mode</span><span class="font-medium text-sm" id="themeText">Dark Mode</span>
+                </button>
+                <button id="adminBtn" onclick="window.toggleAdminDashboard()" class="hidden nav-link w-full flex items-center gap-4 px-6 py-4 text-primary dark:text-secondary-fixed hover:bg-white/40 dark:hover:bg-white/10 rounded-full transition-all font-bold">
+                    <span class="material-symbols-outlined">shield_person</span><span class="font-medium text-sm">Admin Pane</span>
+                </button>
+                <button onclick="window.logout()" class="nav-link w-full flex items-center gap-4 px-6 py-4 text-red-500 hover:bg-red-500/10 rounded-full transition-all">
+                    <span class="material-symbols-outlined">logout</span><span class="font-medium text-sm">Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex gap-6 overflow-hidden relative">
+            <!-- Admin Dashboard -->
+            <section class="absolute inset-0 bg-white/90 dark:bg-slate-900/95 glass-panel z-[60] p-8 rounded-[3rem] hidden opacity-0 flex-col gap-5 transition-opacity duration-300 overflow-y-auto hide-scrollbar" id="adminDashboard">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-headline text-3xl font-extrabold text-primary dark:text-secondary-fixed">Admin Dashboard</h2>
+                    <button onclick="window.toggleAdminDashboard()" class="w-12 h-12 rounded-full glass-panel flex items-center justify-center hover:scale-110 active:scale-95 text-slate-500"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2" id="adminMetricsGrid">
+                    <!-- Dynamic -->
+                </div>
+
+                <div class="flex gap-6 mt-2 flex-wrap">
+                    <div class="flex-1 glass-panel bg-white/40 dark:bg-black/30 p-6 rounded-3xl min-w-[280px]">
+                        <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-primary">person_add</span> Create New User</h3>
+                        <p id="adminError" class="text-red-500 text-sm mb-3 hidden"></p><p id="adminSuccess" class="text-green-500 text-sm mb-3 hidden"></p>
+                        <form onsubmit="event.preventDefault(); window.adminCreateUser();" class="flex flex-col gap-3">
+                            <input type="text" id="newUsername" required placeholder="New Username" class="w-full bg-white/40 dark:bg-black/40 glass-panel rounded-xl py-2 px-4 outline-none">
+                            <input type="password" id="newPassword" required placeholder="User Temp Password" class="w-full bg-white/40 dark:bg-black/40 glass-panel rounded-xl py-2 px-4 outline-none">
+                            <button type="submit" class="py-2 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl font-bold shadow-md hover:-translate-0.5 active:scale-95 transition-all">Issue Credential</button>
+                        </form>
+                    </div>
+                    <div class="flex-1 glass-panel bg-white/40 dark:bg-black/30 p-6 rounded-3xl min-w-[280px]">
+                        <h3 class="font-bold text-lg mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-orange-400">campaign</span> Broadcast Notification</h3>
+                        <form onsubmit="event.preventDefault(); window.broadcastNotif();" class="flex flex-col gap-3">
+                            <textarea id="notifContent" required placeholder="Announcement to all users..." class="w-full h-20 bg-white/40 dark:bg-black/40 glass-panel rounded-xl py-2 px-4 outline-none hide-scrollbar"></textarea>
+                            <button type="submit" class="py-2 bg-gradient-to-br from-orange-400 to-rose-500 text-white rounded-xl font-bold shadow-md hover:-translate-0.5 active:scale-95 transition-all">Send Global Alert</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notifications Modal -->
+            <section class="absolute inset-0 bg-white/40 dark:bg-slate-900/60 z-[70] hidden items-center justify-center backdrop-blur-sm opacity-0 transition-opacity duration-300" id="notifPanel">
+                <div class="glass-panel bg-white/95 dark:bg-slate-800/95 p-6 rounded-3xl shadow-2xl flex flex-col gap-5 w-full max-w-lg mx-4">
+                    <div class="flex justify-between items-center border-b pb-3 border-slate-200 dark:border-slate-700">
+                        <h2 class="font-headline text-2xl font-extrabold text-primary dark:text-secondary-fixed flex items-center gap-2"><span class="material-symbols-outlined">campaign</span> Alerts & Broadcasts</h2>
+                        <button onclick="window.toggleNotifications()" class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center hover:scale-105 active:scale-95 text-slate-500"><span class="material-symbols-outlined">close</span></button>
+                    </div>
+                    <div class="flex flex-col gap-3 overflow-y-auto max-h-96 hide-scrollbar flex-1 pr-1" id="notifList">
+                        <!-- Dynamic -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Group Creation Modal -->
+            <section class="absolute inset-0 bg-white/80 dark:bg-slate-900/90 glass-panel z-50 p-8 rounded-[3rem] hidden opacity-0 flex-col gap-6 transition-opacity duration-300" id="groupModal">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-headline text-3xl font-extrabold text-primary dark:text-secondary-fixed">Create Group Chat</h2>
+                    <button onclick="window.toggleGroupModal()" class="w-12 h-12 rounded-full glass-panel flex flex-center items-center justify-center hover:scale-110 active:scale-95 text-slate-500"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="flex flex-col gap-4 max-w-lg w-full mt-4 glass-panel p-6 rounded-3xl dark:bg-black/30">
+                    <input type="text" id="groupNameInput" placeholder="Group Name" class="w-full bg-white/40 dark:bg-black/40 glass-panel py-3 px-5 outline-none mb-4 rounded-xl">
+                    <h4 class="font-bold text-sm text-slate-500 uppercase tracking-wider">Select Members</h4>
+                    <div id="groupMembersList" class="flex flex-col gap-2 max-h-60 overflow-y-auto hide-scrollbar"></div>
+                    <button onclick="window.createGroup()" class="mt-4 py-3 bg-gradient-to-br from-primary to-primary-container text-white rounded-xl font-bold shadow-lg hover:-translate-y-1 transition-all">Create Group</button>
+                </div>
+            </section>
+
+            <!-- Delete Confirm Modal -->
+            <div id="deleteConfirm" class="absolute inset-0 z-50 hidden items-center justify-center bg-black/20 dark:bg-black/60 backdrop-blur-sm opacity-0 transition-opacity">
+                <div class="glass-panel bg-white/90 dark:bg-slate-800/95 p-8 rounded-3xl shadow-2xl flex flex-col gap-6 max-w-sm text-center">
+                    <div class="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/20 text-red-500 flex items-center justify-center"><span class="material-symbols-outlined text-3xl">delete</span></div>
+                    <p class="font-medium text-lg" id="deletePromptTxt">Delete this message?</p>
+                    <div class="flex flex-col gap-3">
+                        <button onclick="window.commitDelete(true)" id="delEveryoneBtn" class="py-3 bg-red-500 text-white rounded-xl font-bold shadow-md hover:bg-red-600">Delete for everyone</button>
+                        <button onclick="window.commitDelete(false)" class="py-3 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold shadow-md hover:bg-slate-300 dark:hover:bg-slate-600">Delete for me</button>
+                        <button onclick="window.cancelDelete()" class="mt-2 text-sm text-slate-500 hover:text-slate-800">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat List -->
+            <section class="w-96 flex flex-col gap-6 relative fade-in-up" id="chatListSection" style="transition-delay: 0.1s;">
+                <div class="glass-panel bg-surface-container-low/40 dark:bg-slate-800/40 rounded-xl p-6 flex flex-col gap-6 h-full shadow-2xl relative z-10">
+                    <div class="flex items-center justify-between">
+                        <h2 class="font-headline text-2xl font-extrabold tracking-tight">Chats</h2>
+                        <button onclick="window.fetchChats()" class="w-10 h-10 rounded-full glass-panel flex items-center justify-center hover:bg-white/80 hover:scale-110 text-primary dark:text-secondary-fixed"><span class="material-symbols-outlined">refresh</span></button>
+                    </div>
+                    <button onclick="window.toggleGroupModal()" class="w-full py-3 rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-bold glass-panel flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:scale-[1.02] transition-transform">
+                        <span class="material-symbols-outlined text-xl">group_add</span> New Group Chat
+                    </button>
+                    <div class="flex-1 overflow-y-auto hide-scrollbar flex flex-col gap-4" id="usersListContainer"></div>
+                </div>
+            </section>
+
+            <!-- Chat Window -->
+            <section class="flex-1 flex flex-col gap-6 relative fade-in-up" id="chatWindowSection" style="transition-delay: 0.2s;">
+                <header class="glass-panel bg-white/40 dark:bg-slate-800/40 rounded-xl p-4 flex items-center justify-between shadow-2xl z-10" id="chatHeader" style="display: none;">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-secondary-fixed to-primary glass-panel flex items-center justify-center text-white font-bold text-xl shadow-md" id="activeAvatar"><span id="activeUserInitial">?</span></div>
+                        <div>
+                            <h3 class="font-headline font-extrabold text-lg tracking-tight flex items-center gap-2" id="activeUserName">Chat</h3>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-secondary-fixed shadow-[0_0_8px_rgba(98,250,227,1)]"></span><span class="text-[10px] font-label text-slate-500 uppercase tracking-wider">Live</span></div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <button id="clearChatBtn" onclick="window.clearChatPrompt()" class="p-2 rounded-full hover:bg-red-500/10 text-slate-500 hover:text-red-500 transition-colors" title="Clear Chat for Me">
+                            <span class="material-symbols-outlined">auto_delete</span>
+                        </button>
+                        <button id="deleteGroupBtn" onclick="window.deleteGroupPrompt()" class="hidden p-2 rounded-full hover:bg-red-600/10 text-red-500 transition-colors" title="Delete Group">
+                            <span class="material-symbols-outlined">delete_forever</span>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="flex-1 glass-panel bg-white/10 dark:bg-black/10 rounded-xl p-8 overflow-y-auto hide-scrollbar flex flex-col gap-6 shadow-inner relative z-10" id="messageAreaContainer">
+                    <div id="messageArea" class="flex-1 flex flex-col gap-2 pb-8">
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50">
+                            <span class="material-symbols-outlined text-6xl">forum</span><p class="font-medium">Select a user or group to start chatting.</p>
+                        </div>
+                    </div>
+                    <div id="typingIndicator" class="hidden flex items-end gap-3 max-w-[70%] message-bubble mt-auto">
+                        <div class="bg-white/60 dark:bg-slate-700/60 glass-panel rounded-2xl py-3 px-4 shadow-lg text-slate-500 flex gap-1 items-center">
+                            <div class="w-2 h-2 bg-slate-400 dark:bg-slate-300 rounded-full typing-dot"></div><div class="w-2 h-2 bg-slate-400 dark:bg-slate-300 rounded-full typing-dot"></div><div class="w-2 h-2 bg-slate-400 dark:bg-slate-300 rounded-full typing-dot"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="emojiPicker" class="absolute bottom-[90px] left-6 glass-panel bg-white/95 dark:bg-slate-800/95 rounded-2xl p-4 shadow-2xl z-50 hidden transition-opacity w-72">
+                    <div class="grid grid-cols-6 gap-2 text-2xl h-48 overflow-y-auto hide-scrollbar" id="emojiGrid"></div>
+                </div>
+
+                <footer class="p-4 glass-panel bg-white/50 dark:bg-slate-800/50 rounded-2xl shadow-2xl flex items-center gap-3 relative z-10" style="display: none;" id="inputFooter">
+                    <button type="button" onclick="window.toggleEmojiPicker()" class="w-12 h-12 rounded-full hover:bg-white/40 dark:hover:bg-black/30 flex items-center justify-center transition-colors text-slate-500 dark:text-slate-300 group"><span class="material-symbols-outlined group-hover:scale-110 transition-transform">mood</span></button>
+                    <!-- Media Attachment -->
+                    <label class="w-12 h-12 rounded-full cursor-pointer hover:bg-white/40 dark:hover:bg-black/30 flex items-center justify-center transition-colors text-slate-500 dark:text-slate-300 group">
+                        <input type="file" accept="image/*" class="hidden" onchange="window.handleMedia(event)">
+                        <span class="material-symbols-outlined group-hover:scale-110 transition-transform">attach_file</span>
+                    </label>
+
+                    <form onsubmit="event.preventDefault(); window.sendMessage();" class="flex-1 flex items-center gap-3">
+                        <input id="messageInput" class="flex-1 bg-surface-container-low/40 dark:bg-black/30 glass-panel border-transparent focus:ring-4 focus:ring-primary/10 rounded-xl py-4 px-6 placeholder:text-slate-400 font-medium outline-none" placeholder="Type a message..." type="text" autocomplete="off" oninput="window.notifyTyping()"/>
+                        <button type="submit" class="w-14 h-14 bg-gradient-to-br from-primary to-primary-container text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-transform"><span class="material-symbols-outlined text-2xl">send</span></button>
+                    </form>
+                </footer>
+            </section>
+        </main>
+    </div>
+
+    <!-- Reaction Picker -->
+    <div id="reactionPicker" class="absolute glass-panel bg-white/95 dark:bg-slate-800/95 rounded-full px-3 py-2 shadow-2xl hidden flex gap-3 z-50 text-2xl mt-[-50px]">
+        <span class="cursor-pointer hover:scale-125 transition-transform" onclick="window.submitReaction('👍')">👍</span>
+        <span class="cursor-pointer hover:scale-125 transition-transform" onclick="window.submitReaction('❤️')">❤️</span>
+        <span class="cursor-pointer hover:scale-125 transition-transform" onclick="window.submitReaction('😂')">😂</span>
+        <span class="cursor-pointer hover:scale-125 transition-transform" onclick="window.submitReaction('😭')">😭</span>
+        <span class="cursor-pointer hover:scale-125 transition-transform" onclick="window.submitReaction('😡')">😡</span>
+        <span class="cursor-pointer hover:scale-125 transition-transform" onclick="window.submitReaction('🔥')">🔥</span>
+    </div>
+
+    <script>
+        let currentUser=null, activeChat=null, pollingInterval=null;
+        let adminPaneOpen=false, groupModalOpen=false, notifPaneOpen=false;
+        let cachedUsers=[], currentReactionMsgId=null, lastTypingTime=0;
+        let msgToDelete=null;
+        let latestNotifArray = [];
+        const API_BASE = '/api';
+        const EMOJIS = ["😀","😂","🥰","😎","🤔","🙄","😭","😡","👍","👎","❤️","🔥","✨","🎉","👋","👀","🥶","🤢","💯","🚀"];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if(localStorage.getItem('theme')==='dark') window.toggleTheme(true);
+            const pGrid = document.getElementById('emojiGrid');
+            EMOJIS.forEach(e => {
+                const span = document.createElement('span'); span.className = 'cursor-pointer hover:scale-125 transition-transform text-center'; span.innerText = e;
+                span.onclick = () => { document.getElementById('messageInput').value += e; }; pGrid.appendChild(span);
+            });
+            document.addEventListener('click', (e) => {
+                if(!e.target.closest('#emojiPicker') && !e.target.closest('button[onclick="window.toggleEmojiPicker()"]')) document.getElementById('emojiPicker').classList.add('hidden');
+                if(!e.target.closest('#reactionPicker') && !e.target.closest('.add-reaction-btn')) document.getElementById('reactionPicker').classList.add('hidden');
+            });
+        });
+
+        window.toggleTheme = (forceDark=false) => {
+            const isDark = forceDark ? true : document.documentElement.classList.toggle('dark');
+            if(forceDark) document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            document.getElementById('themeIcon').innerText = isDark ? "light_mode" : "dark_mode";
+            document.getElementById('themeText').innerText = isDark ? "Light Mode" : "Dark Mode";
+        };
+
+        window.toggleEmojiPicker = () => document.getElementById('emojiPicker').classList.toggle('hidden');
+
+        window.handleLogin = async () => {
+            const u = document.getElementById('usernameInput').value.trim(), p = document.getElementById('passwordInput').value;
+            try {
+                const res = await fetch(`${API_BASE}/login`, { method:'POST', body: JSON.stringify({username:u, password:p}) });
+                const data = await res.json();
+                if(data.success) {
+                    currentUser = data; document.getElementById('currentUserDisplay').innerText = data.username;
+                    document.getElementById('adminBtn').classList.toggle('hidden', data.role !== 'admin');
+                    document.getElementById('authScreen').classList.add('opacity-0', 'pointer-events-none');
+                    document.getElementById('appState').classList.remove('opacity-0', 'pointer-events-none', 'absolute');
+                    setTimeout(()=>document.getElementById('sidebar').classList.add('loaded'), 100);
+                    setTimeout(()=>document.getElementById('chatListSection').classList.add('loaded'), 300);
+                    setTimeout(()=>document.getElementById('chatWindowSection').classList.add('loaded'), 500);
+                    window.fetchChats(); setInterval(window.fetchChats, 10000); 
+                    pollMessages(); pollingInterval = setInterval(pollMessages, 2000);
+                } else document.getElementById('authError').innerText=data.error||'Failed', document.getElementById('authError').classList.remove('hidden');
+            } catch(e){}
+        };
+
+        window.logout = () => location.reload();
+
+        window.toggleAdminDashboard = () => {
+            adminPaneOpen = !adminPaneOpen;
+            const dash = document.getElementById('adminDashboard');
+            if(adminPaneOpen) { dash.classList.remove('hidden'); setTimeout(()=>dash.classList.remove('opacity-0'),50); window.loadAdminMetrics(); }
+            else { dash.classList.add('opacity-0'); setTimeout(()=>dash.classList.add('hidden'),300); }
+        };
+
+        window.loadAdminMetrics = async () => {
+            if(!currentUser || currentUser.role !== 'admin') return;
+            try {
+                const data = await (await fetch(`${API_BASE}/admin/metrics?admin_id=${currentUser.user_id}`)).json();
+                document.getElementById('adminMetricsGrid').innerHTML = `
+                    <div class="glass-panel bg-white/40 dark:bg-slate-800/40 p-4 rounded-2xl text-center"><div class="text-2xl font-bold text-primary tracking-tight">${data.users}</div><div class="text-[10px] text-slate-500 uppercase">Total Users</div></div>
+                    <div class="glass-panel bg-white/40 dark:bg-slate-800/40 p-4 rounded-2xl text-center"><div class="text-2xl font-bold text-emerald-400 tracking-tight">${data.groups}</div><div class="text-[10px] text-slate-500 uppercase">Total Groups</div></div>
+                    <div class="glass-panel bg-white/40 dark:bg-slate-800/40 p-4 rounded-2xl text-center"><div class="text-2xl font-bold text-orange-400 tracking-tight">${data.messages}</div><div class="text-[10px] text-slate-500 uppercase">Total Messages</div></div>`;
+                const logs = document.getElementById('adminLogsList');
+                logs.innerHTML = data.recent_messages.map(m => `<div class="p-2 bg-white/20 dark:bg-black/10 rounded-xl flex justify-between items-center"><div><span class="font-bold text-primary">${m.sender}</span>: <span class="text-slate-600 dark:text-slate-300">${m.content.substring(0,25)}${m.content.length>25?'...':''}</span></div><div class="text-[10px] text-slate-400">${m.timestamp.split(' ')[1]}</div></div>`).join('') || '<p class="text-slate-400 text-center">No logs.</p>';
+            } catch(e){}
+        };
+
+        window.toggleNotifications = () => {
+            notifPaneOpen = !notifPaneOpen;
+            const pane = document.getElementById('notifPanel');
+            document.getElementById('notifBadge').classList.add('hidden'); 
+            if(notifPaneOpen) { 
+                pane.classList.replace('hidden', 'flex'); 
+                const ls = document.getElementById('notifList');
+                ls.innerHTML = latestNotifArray.map(n => `<div class="p-3 bg-white/40 dark:bg-black/20 rounded-xl glass-panel"><div class="text-xs text-slate-500 mb-1">${n.timestamp}</div>${n.content}</div>`).join('') || '<p class="text-slate-400 text-center">No alerts.</p>';
+                setTimeout(()=>pane.classList.remove('opacity-0'),50); 
+            }
+            else { pane.classList.add('opacity-0'); setTimeout(()=>pane.classList.replace('flex', 'hidden'),300); }
+        };
+
+        window.toggleGroupModal = () => {
+            groupModalOpen = !groupModalOpen;
+            const modal = document.getElementById('groupModal');
+            if(groupModalOpen) {
+                modal.classList.remove('hidden'); setTimeout(()=>modal.classList.remove('opacity-0'), 50);
+                document.getElementById('groupMembersList').innerHTML = cachedUsers.map(u => `<label class="flex items-center gap-3 p-2 hover:bg-white/10 rounded cursor-pointer"><input type="checkbox" value="${u.id}" class="w-5 h-5"><span class="font-medium">${u.name}</span></label>`).join('');
+            } else { modal.classList.add('opacity-0'); setTimeout(()=>modal.classList.add('hidden'), 300); }
+        };
+
+        window.adminCreateUser = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/admin/create_user`, { method:'POST', body: JSON.stringify({admin_id: currentUser.user_id, username: document.getElementById('newUsername').value.trim(), password: document.getElementById('newPassword').value})});
+                const data = await res.json();
+                if(data.success) { document.getElementById('adminSuccess').innerText = data.message; document.getElementById('adminSuccess').classList.remove('hidden'); window.fetchChats(); window.loadAdminMetrics(); }
+            } catch(e){}
+        };
+
+        window.broadcastNotif = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/notifications`, { method:'POST', body: JSON.stringify({admin_id: currentUser.user_id, content: document.getElementById('notifContent').value})});
+                if((await res.json()).success) { document.getElementById('notifContent').value = ''; alert('Broadcast Sent!'); pollMessages(); window.loadAdminMetrics(); }
+            } catch(e){}
+        };
+
+        window.createGroup = async () => {
+            const name = document.getElementById('groupNameInput').value.trim();
+            const selected = Array.from(document.querySelectorAll('#groupMembersList input:checked')).map(el => parseInt(el.value));
+            if(!name || selected.length===0) return alert("Valid name and member required");
+            try {
+                await fetch(`${API_BASE}/groups`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, creator_id: currentUser.user_id, members: selected})});
+                window.toggleGroupModal(); window.fetchChats(); window.loadAdminMetrics();
+            } catch(e) {}
+        };
+
+        window.fetchChats = async () => {
+            try {
+                const data = await (await fetch(`${API_BASE}/chats?user_id=${currentUser.user_id}`)).json();
+                cachedUsers = data.chats.filter(c => c.type === 'user');
+                const container = document.getElementById('usersListContainer');
+                let html = '';
+                data.chats.forEach((chat) => {
+                    const isActive = activeChat && activeChat.id === chat.id && activeChat.type === chat.type;
+                    const isGroup = chat.type === 'group';
+                    html += `<div onclick='window.selectChat(${JSON.stringify(chat)})' class="p-4 my-2 glass-panel border rounded-2xl transition-all flex items-center gap-4 cursor-pointer hover:-translate-y-1 ${isActive ? 'bg-white/60 dark:bg-white/10 border-white/50 shadow-xl scale-[1.02]' : 'hover:bg-white/40 dark:hover:bg-white/5 border-transparent'}">
+                        <div class="w-12 h-12 rounded-full ${isGroup ? 'bg-gradient-to-br from-green-400 to-emerald-600':'bg-gradient-to-br from-tertiary to-rose-600'} flex items-center justify-center text-white font-bold text-lg">${isGroup ? '<span class="material-symbols-outlined">group</span>' : chat.name.charAt(0).toUpperCase()}</div>
+                        <div class="flex-1 overflow-hidden"><h4 class="font-bold truncate">${chat.name}</h4><p class="text-xs text-slate-500">${isGroup?'Group Chat':'Direct Message'}</p></div>
+                    </div>`;
+                });
+                container.innerHTML = html || '<p class="text-center text-slate-500 text-sm mt-10">No chats found.</p>';
+            } catch(e) {}
+        };
+
+        window.selectChat = (chat) => {
+            activeChat = chat;
+            document.getElementById('chatHeader').style.display = 'flex'; document.getElementById('inputFooter').style.display = 'flex';
+            document.getElementById('activeUserName').innerText = chat.name;
+            const isGroup = chat.type === 'group';
+            document.getElementById('activeAvatar').className = `w-12 h-12 rounded-full ${isGroup ? 'bg-gradient-to-br from-green-400 to-emerald-600' : 'bg-gradient-to-br from-tertiary to-rose-600'} glass-panel flex items-center justify-center text-white font-bold text-xl`;
+            document.getElementById('activeUserInitial').innerHTML = isGroup ? '<span class="material-symbols-outlined">group</span>' : chat.name.charAt(0).toUpperCase();
+            
+            const isOwner = isGroup && chat.created_by == currentUser.user_id;
+            document.getElementById('deleteGroupBtn').classList.toggle('hidden', !isOwner);
+
+            window.lastMessagesJSON = ""; 
+            window.fetchChats();
+            pollMessages();
+        };
+
+        window.clearChatPrompt = async () => {
+            if(!activeChat) return;
+            if(confirm("Clear chat history? This hides messages strictly on your end for now.")){
+                const pl = { user_id: currentUser.user_id };
+                if(activeChat.type==='user') pl.other_user_id = activeChat.id; else pl.group_id = activeChat.id;
+                await fetch(`${API_BASE}/messages/clear`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(pl)});
+                window.lastMessagesJSON = ""; pollMessages();
+            }
+        };
+
+        window.deleteGroupPrompt = async () => {
+            if(!activeChat || activeChat.type !== 'group') return;
+            if(confirm("Delete this group and all its history for ALL users?")){
+                await fetch(`${API_BASE}/groups/delete`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({group_id: activeChat.id, user_id: currentUser.user_id})});
+                activeChat = null; document.getElementById('chatHeader').style.display = 'none'; document.getElementById('inputFooter').style.display = 'none';
+                document.getElementById('messageArea').innerHTML = `<div class="h-full flex flex-col items-center justify-center text-slate-400 gap-4 opacity-50"><span class="material-symbols-outlined text-6xl">forum</span><p class="font-medium">Group Deleted.</p></div>`;
+                window.lastMessagesJSON = ""; window.fetchChats();
+            }
+        };
+
+        window.notifyTyping = () => {
+            if(Date.now() - lastTypingTime < 2000) return; lastTypingTime = Date.now();
+            fetch(`${API_BASE}/typing`, { method:'POST', body: JSON.stringify({ sender_id: currentUser.user_id, receiver_id: activeChat.type==='user'?activeChat.id:null, group_id: activeChat.type==='group'?activeChat.id:null }) });
+        };
+
+        const pollMessages = async () => {
+            if(!currentUser) return;
+            const url = `${API_BASE}/state?user_id=${currentUser.user_id}` + (activeChat ? (activeChat.type==='user'?`&other_user_id=${activeChat.id}`:`&group_id=${activeChat.id}`) : '');
+            try {
+                const res = await fetch(url); const data = await res.json();
+                
+                // Notifications logic
+                if(data.notifications && data.notifications.length > 0) {
+                    if(latestNotifArray.length > 0 && data.notifications[0].id > latestNotifArray[0].id && !notifPaneOpen) {
+                        document.getElementById('notifBadge').classList.remove('hidden');
+                    }
+                    latestNotifArray = data.notifications;
+                    if(notifPaneOpen) { // live update list
+                        document.getElementById('notifList').innerHTML = latestNotifArray.map(n => `<div class="p-3 bg-white/40 dark:bg-black/20 rounded-xl glass-panel"><div class="text-xs text-slate-500 mb-1">${n.timestamp}</div>${n.content}</div>`).join('');
+                    }
+                }
+
+                if(!activeChat) return;
+                const area = document.getElementById('messageArea');
+                const isAtBottom = area.parentNode.scrollHeight - area.parentNode.scrollTop <= area.parentNode.clientHeight + 50;
+                
+                const msgString = JSON.stringify(data.messages);
+                if(window.lastMessagesJSON === msgString) {
+                     const ti = document.getElementById('typingIndicator');
+                     if(data.typing?.length > 0) { ti.classList.remove('hidden'); if(isAtBottom) area.parentNode.scrollTop = area.parentNode.scrollHeight; } else ti.classList.add('hidden');
+                     return;
+                }
+                window.lastMessagesJSON = msgString;
+
+                let html = '';
+                if(data.messages.length === 0) html = `<p class="text-center text-slate-400 mt-10">No messages yet. Say hello!</p>`;
+                else {
+                     data.messages.forEach(msg => {
+                         const isSelf = msg.sender_id === currentUser.user_id;
+                         const rHtml = msg.reactions.length > 0 ? 
+                            `<div class="absolute -bottom-3 ${isSelf ? 'right-4' : 'left-4'} flex gap-1 z-20">
+                                ${msg.reactions.map(r => `<button onclick="window.toggleReaction(${msg.id}, '${r.emoji}', ${r.has_reacted})" class="${r.has_reacted?'bg-primary/20 border-primary shadow-[0_0_8px_rgba(90,69,203,0.5)]':'bg-white dark:bg-slate-700 border-white/10 dark:border-black'} hover:-translate-y-1 transition-transform border rounded-full px-2 py-0.5 text-xs">${r.emoji} ${r.count>1?r.count:''}</button>`).join('')}
+                             </div>` : '';
+                         
+                         const contentInner = msg.is_media ? `<img src="${msg.content}" class="max-w-[200px] md:max-w-xs rounded-xl shadow-md"/>` : `<span class="break-words ${msg.content === '[This message was deleted]' ? 'italic text-white/60 dark:text-white/40' : ''}">${msg.content}</span>`;
+
+                         html += `
+                            <div class="flex items-end gap-3 max-w-[70%] group message-bubble ${isSelf ? 'ml-auto text-white' : 'mr-auto text-slate-800 dark:text-gray-100'} ${rHtml ? 'mb-3' : 'mb-1'}">
+                                ${!isSelf ? `<div class="w-8 h-8 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed text-xs font-bold shadow-md flex-shrink-0">${msg.sender_name.charAt(0).toUpperCase()}</div>` : ''}
+                                <div class="relative flex items-center gap-2 ${isSelf ? 'flex-row-reverse' : 'flex-row'}">
+                                    <div class="${isSelf ? 'bg-gradient-to-br from-primary to-primary-container' : 'bg-white/60 dark:bg-slate-700/60 border dark:border-white/10'} glass-panel rounded-2xl p-4 shadow-lg transition-transform relative">
+                                        ${contentInner}
+                                        ${rHtml}
+                                    </div>
+                                    <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button class="add-reaction-btn w-8 h-8 rounded-full bg-white/50 dark:bg-slate-700/50 flex items-center justify-center hover:scale-110" onclick="window.showReactions(event, ${msg.id})"><span class="material-symbols-outlined text-[16px]">add_reaction</span></button>
+                                        <button class="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center hover:scale-110 hover:bg-red-500/30" onclick="window.askDelete(${msg.id}, ${isSelf})"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+                                    </div>
+                                </div>
+                            </div>`;
+                     });
+                }
+                if(area.innerHTML !== html) { area.innerHTML = html; if(isAtBottom) area.parentNode.scrollTop = area.parentNode.scrollHeight; }
+                const ti = document.getElementById('typingIndicator');
+                if(data.typing?.length > 0) { ti.classList.remove('hidden'); if(isAtBottom) area.parentNode.scrollTop = area.parentNode.scrollHeight; } else ti.classList.add('hidden');
+            } catch(e) {}
+        };
+
+        window.handleMedia = (e) => {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const b64 = ev.target.result;
+                const isDM = activeChat.type === 'user';
+                const payload = { sender_id: currentUser.user_id, content: b64, is_media: true };
+                if(isDM) payload.receiver_id = activeChat.id; else payload.group_id = activeChat.id;
+                await fetch(`${API_BASE}/messages`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                pollMessages();
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.sendMessage = async () => {
+            const input = document.getElementById('messageInput'), content = input.value.trim();
+            if(!content || !activeChat) return; input.value = '';
+            const isDM = activeChat.type === 'user';
+            const payload = { sender_id: currentUser.user_id, content };
+            if(isDM) payload.receiver_id = activeChat.id; else payload.group_id = activeChat.id;
+            await fetch(`${API_BASE}/messages`, { method:'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            pollMessages();
+        };
+
+        // Reactions
+        window.showReactions = (e, msgId) => {
+            currentReactionMsgId = msgId; const picker = document.getElementById('reactionPicker');
+            let leftPos = e.pageX; if(leftPos+280>window.innerWidth) leftPos = window.innerWidth-280-20;
+            picker.style.left = leftPos + 'px'; picker.style.top = e.pageY + 'px'; // used mt-[-50px]
+            picker.classList.remove('hidden');
+        };
+        window.submitReaction = async (emoji) => {
+            document.getElementById('reactionPicker').classList.add('hidden'); if(!currentReactionMsgId) return;
+            await fetch(`${API_BASE}/reactions`, { method: 'POST', body: JSON.stringify({message_id: currentReactionMsgId, user_id: currentUser.user_id, emoji}) });
+            pollMessages();
+        };
+        window.toggleReaction = async (msgId, emoji, hasReacted) => {
+            if(hasReacted) await fetch(`${API_BASE}/reactions/delete`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message_id: msgId, user_id: currentUser.user_id, emoji})});
+            else currentReactionMsgId = msgId, window.submitReaction(emoji);
+            pollMessages();
+        };
+
+        // Deletion
+        window.askDelete = (msgId, isSelf) => {
+            msgToDelete = {msgId, isSelf};
+            const modal = document.getElementById('deleteConfirm');
+            modal.classList.remove('hidden'); setTimeout(()=>modal.classList.remove('opacity-0'),10)
+            document.getElementById('delEveryoneBtn').classList.toggle('hidden', !isSelf);
+        };
+        window.cancelDelete = () => { msgToDelete = null; document.getElementById('deleteConfirm').classList.add('opacity-0'); setTimeout(()=>document.getElementById('deleteConfirm').classList.add('hidden'),300); };
+        window.commitDelete = async (forEveryone) => {
+            if(!msgToDelete) return;
+            await fetch(`${API_BASE}/messages/delete`, { method:'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message_id: msgToDelete.msgId, user_id: currentUser.user_id, everyone: forEveryone})});
+            window.cancelDelete(); pollMessages();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+import sqlite3
+conn = sqlite3.connect('chatty.db')
+c = conn.cursor()
+c.execute("PRAGMA table_info(messages)")
+print("Schema:", c.fetchall())
+c.execute("SELECT COUNT(*) FROM messages")
+print("Total messages:", c.fetchone()[0])
+c.execute("SELECT expires_at FROM messages LIMIT 5")
+print("Exp sample:", c.fetchall())
+conn.close()
